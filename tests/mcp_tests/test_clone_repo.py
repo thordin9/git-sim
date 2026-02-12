@@ -232,7 +232,6 @@ class TestCloneRepoToolHandler:
         assert "required" in result[0].text.lower()
 
 
-@pytest.mark.asyncio
 class TestCleanup:
     """Test cleanup functionality."""
 

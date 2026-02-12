@@ -48,6 +48,10 @@ def cleanup_cloned_repos():
 # Register cleanup on exit
 atexit.register(cleanup_cloned_repos)
 
+# Timeout constants
+CLONE_TIMEOUT_SECONDS = 5 * 60  # 5 minutes
+EXECUTE_TIMEOUT_SECONDS = 5 * 60  # 5 minutes
+
 
 # Tool parameter schema for clone-repo command
 CLONE_REPO_TOOL_SCHEMA = {
@@ -270,16 +274,18 @@ async def execute_git_sim(
             cwd=repo_path,
         )
 
-        # Add timeout to prevent hanging (5 minutes for animations, could be long)
+        # Add timeout to prevent hanging
         try:
-            stdout, stderr = await asyncio.wait_for(result.communicate(), timeout=300.0)
+            stdout, stderr = await asyncio.wait_for(
+                result.communicate(), timeout=EXECUTE_TIMEOUT_SECONDS
+            )
         except asyncio.TimeoutError:
             result.kill()
             await result.wait()
             return {
                 "success": False,
                 "output": "",
-                "error": "Command execution timed out after 300 seconds",
+                "error": f"Command execution timed out after {EXECUTE_TIMEOUT_SECONDS} seconds",
                 "command": " ".join(cmd),
                 "return_code": -1,
             }
@@ -390,16 +396,18 @@ async def clone_repo(repo_url: str, branch: Optional[str] = None) -> Dict[str, A
             env=env,
         )
         
-        # Wait for clone to complete with timeout (5 minutes)
+        # Wait for clone to complete with timeout
         try:
-            stdout, stderr = await asyncio.wait_for(result.communicate(), timeout=300.0)
+            stdout, stderr = await asyncio.wait_for(
+                result.communicate(), timeout=CLONE_TIMEOUT_SECONDS
+            )
         except asyncio.TimeoutError:
             result.kill()
             await result.wait()
             shutil.rmtree(temp_dir, ignore_errors=True)
             return {
                 "success": False,
-                "error": "Clone operation timed out after 300 seconds",
+                "error": f"Clone operation timed out after {CLONE_TIMEOUT_SECONDS} seconds",
                 "repo_url": repo_url,
             }
         
