@@ -359,6 +359,18 @@ export GIT_SIM_SSH_DISABLE_HOST_KEY_CHECKING=true
 
 When running the server with SSE transport, you can configure CORS settings:
 
+#### Simple Accept-All CORS Mode
+
+- **GIT_SIM_CORS_ACCEPT_ALL**: Set to `true` to accept all CORS requests (allows all origins, methods, and headers). This is the simplest way to enable CORS for development or trusted environments.
+
+```bash
+export GIT_SIM_CORS_ACCEPT_ALL=true
+```
+
+#### Advanced CORS Configuration
+
+For more fine-grained control, use these individual settings:
+
 - **GIT_SIM_CORS_ALLOW_ORIGINS**: Comma-separated list of allowed origins (default: `*`)
 - **GIT_SIM_CORS_ALLOW_METHODS**: Comma-separated list of allowed HTTP methods (default: `GET,POST,OPTIONS`)
 - **GIT_SIM_CORS_ALLOW_HEADERS**: Comma-separated list of allowed headers (default: `*`)
@@ -370,6 +382,8 @@ export GIT_SIM_CORS_ALLOW_METHODS="GET,POST,OPTIONS"
 export GIT_SIM_CORS_ALLOW_HEADERS="Content-Type,Authorization"
 export GIT_SIM_CORS_ALLOW_CREDENTIALS=true
 ```
+
+**Note**: When `GIT_SIM_CORS_ACCEPT_ALL=true` is set, the individual CORS settings are ignored.
 
 ## Troubleshooting
 

@@ -21,6 +21,19 @@ logger = logging.getLogger("git-sim-mcp.sse")
 # Get CORS configuration from environment
 def get_cors_config():
     """Get CORS configuration from environment variables."""
+    # Check for simple accept-all CORS mode
+    accept_all = os.getenv("GIT_SIM_CORS_ACCEPT_ALL", "false").lower() in ("true", "1", "yes")
+    
+    if accept_all:
+        # Accept all CORS: allow all origins, methods, and headers
+        return {
+            "allow_origins": ["*"],
+            "allow_methods": ["*"],
+            "allow_headers": ["*"],
+            "allow_credentials": False,
+        }
+    
+    # Otherwise, use individual configuration settings
     allow_origins = os.getenv("GIT_SIM_CORS_ALLOW_ORIGINS", "*")
     allow_methods = os.getenv("GIT_SIM_CORS_ALLOW_METHODS", "GET,POST,OPTIONS")
     allow_headers = os.getenv("GIT_SIM_CORS_ALLOW_HEADERS", "*")
