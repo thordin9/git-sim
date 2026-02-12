@@ -22,7 +22,7 @@ async def handle_sse(request):
         await server.run(
             transport.read_stream,
             transport.write_stream,
-            server.create_initialization_options()
+            server.create_initialization_options(),
         )
 
 
@@ -34,12 +34,8 @@ async def handle_messages(request):
 async def health_check(request):
     """Health check endpoint."""
     return Response(
-        json.dumps({
-            "status": "healthy",
-            "service": "git-sim-mcp",
-            "transport": "sse"
-        }),
-        media_type="application/json"
+        json.dumps({"status": "healthy", "service": "git-sim-mcp", "transport": "sse"}),
+        media_type="application/json",
     )
 
 
@@ -56,14 +52,9 @@ app = Starlette(
 async def main(host: str = "127.0.0.1", port: int = 8000):
     """Run the SSE server."""
     logger.info(f"Starting git-sim MCP SSE server on {host}:{port}")
-    
-    config = uvicorn.Config(
-        app=app,
-        host=host,
-        port=port,
-        log_level="info"
-    )
-    
+
+    config = uvicorn.Config(app=app, host=host, port=port, log_level="info")
+
     server = uvicorn.Server(config)
     await server.serve()
 

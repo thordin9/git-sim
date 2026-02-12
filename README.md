@@ -43,6 +43,7 @@ Git-Sim is Free and Open-Source Software (FOSS). Your support will help me work 
 ## Features
 - Run a one-liner git-sim command in the terminal to generate a custom Git command visualization (.jpg) from your repo
 - Supported commands: `add`, `branch`, `checkout`, `cherry-pick`, `clean`, `clone`, `commit`, `config`, `fetch`, `init`, `log`, `merge`, `mv`, `pull`, `push`, `rebase`, `remote`, `reset`, `restore`, `revert`, `rm`, `stash`, `status`, `switch`, `tag`
+- **NEW: MCP Server** - Integrate git-sim with AI agents via Model Context Protocol (see [MCP Server documentation](src/git_sim_mcp/README.md))
 - Generate an animated video (.mp4) instead of a static image using the `--animate` flag (note: significant performance slowdown, it is recommended to use `--low-quality` to speed up testing and remove when ready to generate presentation-quality video)
 - Color commits by parameter, such as author with the `--color-by=author` option
 - Choose between dark mode (default) and light mode
@@ -581,6 +582,48 @@ git-sim() { docker run --rm -v $(pwd):/usr/src/git-sim git-sim "$@"; }
 ```
 
 This will enable you to run git-sim subcommands as [described above](#commands).
+
+## MCP Server for AI Integration
+
+git-sim now includes a Model Context Protocol (MCP) server that enables AI agents and LLMs to generate Git visualizations programmatically.
+
+### Quick Start with MCP
+
+```console
+# Install with MCP support
+$ pip3 install git-sim[mcp]
+
+# Start the MCP server
+$ git-sim-mcp
+```
+
+### Features
+
+- **AI-powered Git visualizations**: Let AI assistants create visual explanations of Git operations
+- **Multiple transport protocols**: stdio (default) and SSE for different integration patterns
+- **Full git-sim support**: Access all git-sim commands through a simple tool interface
+- **Comprehensive documentation**: Built-in help and examples for AI agents
+
+### Use Cases
+
+- **AI-assisted learning**: Ask your AI assistant to visualize Git commands as you learn
+- **Automated documentation**: Generate visual Git diagrams for documentation
+- **Code review support**: Visualize branch operations during code reviews
+- **Team collaboration**: Share Git visualizations created by AI assistants
+
+### Documentation
+
+- [MCP Server Installation Guide](src/git_sim_mcp/INSTALL.md)
+- [MCP Server Documentation](src/git_sim_mcp/README.md)
+- [Usage Examples](src/git_sim_mcp/EXAMPLES.md)
+
+### Quick Example
+
+After configuring your MCP client (like Claude Desktop or Cline), you can ask:
+
+> "Visualize the git log for this repository"
+
+The AI assistant will use git-sim to generate an image showing your repository's commit history.
 
 ## Learn More
 Learn more about this tool on the [git-sim project page](https://initialcommit.com/tools/git-sim).
