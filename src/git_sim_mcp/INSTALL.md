@@ -24,14 +24,36 @@ Before installing the MCP server, ensure you have:
 git clone https://github.com/initialcommit-com/git-sim.git
 cd git-sim
 
-# Install git-sim with MCP support
+# Install git-sim with MCP support using pyproject.toml
 pip install -e ".[mcp]"
+
+# Or using requirements files
+pip install -r requirements-mcp.txt
 
 # Verify installation
 git-sim-mcp --version
 ```
 
-#### Option 2: Development installation
+#### Option 2: Using uv (fast alternative to pip)
+
+```bash
+# Install uv if you don't have it
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Create and activate a virtual environment
+uv venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install git-sim with MCP support
+uv pip install -r requirements-mcp.txt
+
+# Verify installation
+git-sim-mcp --version
+```
+
+For detailed setup instructions with virtual environments, see [../../SETUP.md](../../SETUP.md).
+
+#### Option 3: Development installation
 
 ```bash
 # Install only MCP dependencies for server development
