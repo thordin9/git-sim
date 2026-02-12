@@ -55,8 +55,8 @@ async def main(host: str = "127.0.0.1", port: int = 8000):
 
     config = uvicorn.Config(app=app, host=host, port=port, log_level="info")
 
-    server = uvicorn.Server(config)
-    await server.serve()
+    uvicorn_server = uvicorn.Server(config)
+    await uvicorn_server.serve()
 
 
 if __name__ == "__main__":

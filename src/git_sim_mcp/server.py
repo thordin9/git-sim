@@ -20,6 +20,8 @@ from mcp.types import (
 )
 import mcp.server.stdio
 
+from git_sim_mcp import __version__
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("git-sim-mcp")
@@ -450,10 +452,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    import sys
-
-    # Import version from package
-    from git_sim_mcp import __version__
-
     # Run the server
     asyncio.run(main())

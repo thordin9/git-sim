@@ -4,6 +4,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Import version for validation
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
+from git_sim_mcp import __version__
+
 
 def test_server_import():
     """Test that the server module can be imported."""
@@ -34,7 +38,7 @@ def test_server_version():
     )
 
     assert result.returncode == 0, f"Version check failed: {result.stderr}"
-    assert "0.1.0" in result.stdout
+    assert __version__ in result.stdout
 
 
 def test_help_output():
@@ -63,7 +67,7 @@ def test_version_output():
     )
 
     assert result.returncode == 0, f"Version output failed: {result.stderr}"
-    assert "0.1.0" in result.stdout
+    assert __version__ in result.stdout
 
 
 if __name__ == "__main__":
