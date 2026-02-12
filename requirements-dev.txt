@@ -1,0 +1,12 @@
+# Development dependencies for git-sim
+# Install with: pip install -r requirements-dev.txt
+# Or with uv: uv pip install -r requirements-dev.txt
+# Note: This includes the core requirements and MCP requirements
+
+-r requirements-mcp.txt
+
+black
+numpy
+pillow
+pytest
+pytest-asyncio

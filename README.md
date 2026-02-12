@@ -53,7 +53,7 @@ Git-Sim is Free and Open-Source Software (FOSS). Your support will help me work 
 - Animation only: Speed up or slow down animation speed as desired
 
 ## Quickstart
-Note: If you prefer to install git-sim with Docker, skip steps (1) and (2) here and jump to the [Docker installation](#docker-installation) section below, then come back here to step (3).
+Note: For detailed setup instructions including virtual environment setup with `uv`, see [SETUP.md](SETUP.md). If you prefer to install git-sim with Docker, skip steps (1) and (2) here and jump to the [Docker installation](#docker-installation) section below, then come back here to step (3).
 
 1) **Install Manim and its dependencies for your OS / environment:**
     - [Install Manim on Windows](https://docs.manim.community/en/stable/installation/windows.html)

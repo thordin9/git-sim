@@ -1,0 +1,11 @@
+# MCP server dependencies for git-sim
+# Install with: pip install -r requirements-mcp.txt
+# Or with uv: uv pip install -r requirements-mcp.txt
+# Note: This includes the core requirements
+
+-r requirements.txt
+
+mcp>=1.0.0
+starlette>=0.27.0
+uvicorn>=0.23.0
+httpx>=0.24.0

@@ -1,0 +1,11 @@
+# Core git-sim dependencies
+# Install with: pip install -r requirements.txt
+# Or with uv: uv pip install -r requirements.txt
+
+git-dummy
+gitpython
+manim
+opencv-python-headless
+pydantic_settings
+typer
+fonttools
