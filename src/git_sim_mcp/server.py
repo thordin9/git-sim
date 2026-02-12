@@ -1,8 +1,12 @@
 """MCP Server implementation for git-sim with HTTP and SSE support."""
 
 import asyncio
+import atexit
 import base64
 import logging
+import os
+import shutil
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -24,6 +28,43 @@ logger = logging.getLogger("git-sim-mcp")
 
 # Initialize MCP server
 server = Server("git-sim-mcp")
+
+# Session storage for cloned repositories
+_cloned_repos: Dict[str, str] = {}  # Maps repo_url -> local_path
+
+
+def cleanup_cloned_repos():
+    """Clean up all temporary cloned repositories."""
+    for repo_url, local_path in _cloned_repos.items():
+        try:
+            if os.path.exists(local_path):
+                logger.info(f"Cleaning up cloned repo: {local_path}")
+                shutil.rmtree(local_path)
+        except Exception as e:
+            logger.warning(f"Failed to clean up {local_path}: {e}")
+    _cloned_repos.clear()
+
+
+# Register cleanup on exit
+atexit.register(cleanup_cloned_repos)
+
+
+# Tool parameter schema for clone-repo command
+CLONE_REPO_TOOL_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "repo_url": {
+            "type": "string",
+            "description": "The Git repository URL to clone (SSH or HTTPS)",
+        },
+        "branch": {
+            "type": "string",
+            "description": "Optional branch to checkout after cloning",
+            "default": None,
+        },
+    },
+    "required": ["repo_url"],
+}
 
 
 # Tool parameter schema for git-sim commands
@@ -290,10 +331,147 @@ async def execute_git_sim(
         }
 
 
+async def clone_repo(repo_url: str, branch: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Clone a repository to a temporary directory.
+    
+    Args:
+        repo_url: The Git repository URL to clone
+        branch: Optional branch to checkout after cloning
+        
+    Returns:
+        Dictionary containing:
+        - success: bool indicating if clone succeeded
+        - local_path: path to cloned repository (if successful)
+        - error: error message (if any)
+        - repo_url: the original repo URL
+    """
+    try:
+        # Check if already cloned
+        if repo_url in _cloned_repos:
+            local_path = _cloned_repos[repo_url]
+            if os.path.exists(local_path):
+                logger.info(f"Repository already cloned at: {local_path}")
+                return {
+                    "success": True,
+                    "local_path": local_path,
+                    "repo_url": repo_url,
+                    "message": "Repository already cloned",
+                }
+        
+        # Create temporary directory for the clone
+        temp_dir = tempfile.mkdtemp(prefix="git-sim-clone-")
+        logger.info(f"Cloning {repo_url} to {temp_dir}")
+        
+        # Build git clone command
+        cmd = ["git", "clone"]
+        
+        # Add branch if specified
+        if branch:
+            cmd.extend(["-b", branch])
+        
+        # Add repo URL and target directory
+        cmd.extend([repo_url, temp_dir])
+        
+        # Get SSH configuration from environment
+        env = os.environ.copy()
+        
+        # Check if we should disable SSH host key checking
+        disable_host_key_checking = os.getenv("GIT_SIM_SSH_DISABLE_HOST_KEY_CHECKING", "false").lower()
+        if disable_host_key_checking in ("true", "1", "yes"):
+            logger.info("SSH host key checking disabled")
+            env["GIT_SSH_COMMAND"] = "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+        
+        # Execute git clone
+        result = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            env=env,
+        )
+        
+        # Wait for clone to complete with timeout (5 minutes)
+        try:
+            stdout, stderr = await asyncio.wait_for(result.communicate(), timeout=300.0)
+        except asyncio.TimeoutError:
+            result.kill()
+            await result.wait()
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            return {
+                "success": False,
+                "error": "Clone operation timed out after 300 seconds",
+                "repo_url": repo_url,
+            }
+        
+        stdout_str = stdout.decode("utf-8", errors="ignore")
+        stderr_str = stderr.decode("utf-8", errors="ignore")
+        
+        if result.returncode == 0:
+            # Store the cloned repo path
+            _cloned_repos[repo_url] = temp_dir
+            logger.info(f"Successfully cloned {repo_url} to {temp_dir}")
+            
+            return {
+                "success": True,
+                "local_path": temp_dir,
+                "repo_url": repo_url,
+                "message": f"Repository cloned successfully to {temp_dir}",
+                "output": stdout_str,
+            }
+        else:
+            # Clean up on failure
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            return {
+                "success": False,
+                "error": stderr_str or "Clone failed",
+                "repo_url": repo_url,
+                "return_code": result.returncode,
+            }
+            
+    except Exception as e:
+        logger.error(f"Error cloning repository: {e}", exc_info=True)
+        if "temp_dir" in locals() and os.path.exists(locals()["temp_dir"]):
+            shutil.rmtree(locals()["temp_dir"], ignore_errors=True)
+        return {
+            "success": False,
+            "error": str(e),
+            "repo_url": repo_url,
+        }
+
+
 @server.list_tools()
 async def handle_list_tools() -> List[Tool]:
     """List available tools."""
     return [
+        Tool(
+            name="clone-repo",
+            description="""Clone a Git repository to a temporary location for the session.
+
+This tool is useful when the MCP server is accessed over a network and doesn't have
+direct access to the repository. It clones the repository to a temporary directory
+that persists for the session lifecycle.
+
+The cloned repository path can then be used with the 'git-sim' tool's 'repo_path' parameter.
+
+USAGE:
+1. Specify 'repo_url' with the Git repository URL (SSH or HTTPS)
+2. Optionally specify 'branch' to checkout a specific branch
+3. The tool returns the local path to the cloned repository
+
+EXAMPLES:
+1. Clone a repository:
+   {"repo_url": "https://github.com/user/repo.git"}
+
+2. Clone a specific branch:
+   {"repo_url": "git@github.com:user/repo.git", "branch": "main"}
+
+ENVIRONMENT VARIABLES:
+- GIT_SIM_SSH_DISABLE_HOST_KEY_CHECKING: Set to 'true' to disable SSH host key checking
+  (useful for automated environments with trusted hosts)
+
+NOTE: Cloned repositories are automatically cleaned up when the server stops.""",
+            inputSchema=CLONE_REPO_TOOL_SCHEMA,
+        ),
         Tool(
             name="git-sim",
             description="""Execute git-sim to visualize Git operations.
@@ -345,9 +523,61 @@ async def handle_call_tool(
     name: str, arguments: Dict[str, Any]
 ) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
     """Handle tool execution requests."""
-    if name != "git-sim":
+    if name == "clone-repo":
+        return await handle_clone_repo_tool(arguments)
+    elif name == "git-sim":
+        return await handle_git_sim_tool(arguments)
+    else:
         raise ValueError(f"Unknown tool: {name}")
 
+
+async def handle_clone_repo_tool(
+    arguments: Dict[str, Any]
+) -> Sequence[TextContent]:
+    """Handle clone-repo tool execution."""
+    try:
+        repo_url = arguments.get("repo_url")
+        if not repo_url:
+            return [
+                TextContent(
+                    type="text", text="Error: 'repo_url' parameter is required"
+                )
+            ]
+        
+        branch = arguments.get("branch")
+        
+        # Execute the clone
+        result = await clone_repo(repo_url=repo_url, branch=branch)
+        
+        # Build response
+        if result["success"]:
+            response_text = f"✓ Repository cloned successfully\n\n"
+            response_text += f"Repository URL: {result['repo_url']}\n"
+            response_text += f"Local path: {result['local_path']}\n"
+            if result.get("message"):
+                response_text += f"\n{result['message']}\n"
+            if result.get("output"):
+                response_text += f"\nGit output:\n{result['output']}\n"
+            response_text += f"\nYou can now use this path with the git-sim tool by setting 'repo_path': '{result['local_path']}'"
+        else:
+            response_text = f"✗ Repository clone failed\n\n"
+            response_text += f"Repository URL: {result['repo_url']}\n"
+            if result.get("error"):
+                response_text += f"\nError:\n{result['error']}\n"
+            if result.get("return_code"):
+                response_text += f"Return code: {result['return_code']}\n"
+        
+        return [TextContent(type="text", text=response_text)]
+        
+    except Exception as e:
+        logger.error(f"Error in clone-repo tool execution: {e}", exc_info=True)
+        return [TextContent(type="text", text=f"Error cloning repository: {str(e)}")]
+
+
+async def handle_git_sim_tool(
+    arguments: Dict[str, Any]
+) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+    """Handle git-sim tool execution."""
     try:
         # Extract parameters
         command = arguments.get("command")

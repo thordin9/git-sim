@@ -146,15 +146,23 @@ class TestToolHandlers:
         """Test listing available tools."""
         tools = await handle_list_tools()
 
-        assert len(tools) == 1
-        assert tools[0].name == "git-sim"
-        assert "visualize" in tools[0].description.lower()
-        assert tools[0].inputSchema is not None
+        assert len(tools) == 2
+        tool_names = [t.name for t in tools]
+        assert "clone-repo" in tool_names
+        assert "git-sim" in tool_names
+        
+        # Find the git-sim tool
+        git_sim_tool = next(t for t in tools if t.name == "git-sim")
+        assert "visualize" in git_sim_tool.description.lower()
+        assert git_sim_tool.inputSchema is not None
 
     async def test_tool_schema_has_required_fields(self):
         """Test that tool schema includes all required fields."""
         tools = await handle_list_tools()
-        schema = tools[0].inputSchema
+        
+        # Find the git-sim tool
+        git_sim_tool = next(t for t in tools if t.name == "git-sim")
+        schema = git_sim_tool.inputSchema
 
         assert "properties" in schema
         assert "command" in schema["properties"]
@@ -164,7 +172,10 @@ class TestToolHandlers:
     async def test_tool_schema_has_all_commands(self):
         """Test that tool schema includes all git-sim commands."""
         tools = await handle_list_tools()
-        schema = tools[0].inputSchema
+        
+        # Find the git-sim tool
+        git_sim_tool = next(t for t in tools if t.name == "git-sim")
+        schema = git_sim_tool.inputSchema
 
         expected_commands = [
             "add",

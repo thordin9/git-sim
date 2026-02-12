@@ -13,13 +13,16 @@ The git-sim MCP server exposes git-sim functionality through the MCP protocol, a
 ## Features
 
 - **Full git-sim support**: Access all git-sim commands (log, merge, rebase, commit, etc.)
+- **Remote repository cloning**: Clone repositories to temporary locations for network-based access
 - **Multiple transport protocols**: 
   - stdio (default) - for local integration
-  - SSE (Server-Sent Events) - for HTTP-based communication
+  - SSE (Server-Sent Events) - for HTTP-based communication with CORS support
 - **Streaming support**: Real-time output streaming for long-running operations
 - **Comprehensive tool schema**: Well-documented parameters for easy agent integration
 - **Image and video generation**: Support for both static images and animated videos
 - **Flexible output**: Returns both file paths and embedded image data
+- **Session management**: Cloned repositories persist for the session lifecycle
+- **Security features**: Configurable SSH host key checking and CORS settings
 
 ## Installation
 
@@ -114,9 +117,32 @@ For SSE-based clients:
 
 ## Tool Schema
 
-### git-sim Tool
+The server provides two tools:
 
-The server provides a single tool called `git-sim` with the following parameters:
+### 1. clone-repo Tool
+
+Clone a Git repository to a temporary location for the session. This is useful when the MCP server is accessed over a network and doesn't have direct access to the repository.
+
+#### Required Parameters
+
+- **repo_url** (string): The Git repository URL to clone (SSH or HTTPS)
+
+#### Optional Parameters
+
+- **branch** (string): Optional branch to checkout after cloning
+
+#### Example
+
+```json
+{
+  "repo_url": "https://github.com/user/repo.git",
+  "branch": "main"
+}
+```
+
+### 2. git-sim Tool
+
+The server provides a tool called `git-sim` with the following parameters:
 
 #### Required Parameters
 
@@ -140,6 +166,52 @@ The server provides a single tool called `git-sim` with the following parameters
 - **extra_flags** (array of strings): Additional git-sim flags
 
 ## Usage Examples for Agents
+
+### Remote Repository Workflow
+
+When the MCP server doesn't have direct access to a repository (e.g., network access), use the clone-repo tool first:
+
+#### Example 1: Clone a repository and visualize it
+
+Step 1 - Clone the repository:
+```json
+{
+  "tool": "clone-repo",
+  "arguments": {
+    "repo_url": "https://github.com/user/repo.git"
+  }
+}
+```
+
+Response will include the local path, e.g., `/tmp/git-sim-clone-abc123`
+
+Step 2 - Use the cloned repository with git-sim:
+```json
+{
+  "tool": "git-sim",
+  "arguments": {
+    "command": "log",
+    "n": 10,
+    "repo_path": "/tmp/git-sim-clone-abc123"
+  }
+}
+```
+
+#### Example 2: Clone a specific branch
+
+```json
+{
+  "tool": "clone-repo",
+  "arguments": {
+    "repo_url": "git@github.com:user/private-repo.git",
+    "branch": "develop"
+  }
+}
+```
+
+### Local Repository Examples
+
+For local repositories or when the server has direct access:
 
 ### Example 1: Visualize git log
 
@@ -263,12 +335,40 @@ options:
 
 ## Environment Variables
 
-You can also configure git-sim behavior using environment variables (same as regular git-sim):
+### Git-sim Configuration
+
+You can configure git-sim behavior using environment variables (same as regular git-sim):
 
 ```bash
 export git_sim_media_dir=~/Desktop/git-visualizations
 export git_sim_light_mode=true
 export git_sim_animate=false
+```
+
+### Remote Repository Cloning Configuration
+
+When using the `clone-repo` tool, you can configure SSH and Git behavior:
+
+- **GIT_SIM_SSH_DISABLE_HOST_KEY_CHECKING**: Set to `true` to disable SSH host key checking (useful for automated environments with trusted hosts)
+
+```bash
+export GIT_SIM_SSH_DISABLE_HOST_KEY_CHECKING=true
+```
+
+### CORS Configuration (SSE Transport Only)
+
+When running the server with SSE transport, you can configure CORS settings:
+
+- **GIT_SIM_CORS_ALLOW_ORIGINS**: Comma-separated list of allowed origins (default: `*`)
+- **GIT_SIM_CORS_ALLOW_METHODS**: Comma-separated list of allowed HTTP methods (default: `GET,POST,OPTIONS`)
+- **GIT_SIM_CORS_ALLOW_HEADERS**: Comma-separated list of allowed headers (default: `*`)
+- **GIT_SIM_CORS_ALLOW_CREDENTIALS**: Set to `true` to allow credentials (default: `false`)
+
+```bash
+export GIT_SIM_CORS_ALLOW_ORIGINS="https://example.com,https://app.example.com"
+export GIT_SIM_CORS_ALLOW_METHODS="GET,POST,OPTIONS"
+export GIT_SIM_CORS_ALLOW_HEADERS="Content-Type,Authorization"
+export GIT_SIM_CORS_ALLOW_CREDENTIALS=true
 ```
 
 ## Troubleshooting
