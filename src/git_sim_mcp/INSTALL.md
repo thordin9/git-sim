@@ -202,11 +202,19 @@ For production deployments on Linux systems, you can run the MCP server as a sys
 1. Install git-sim with MCP support system-wide:
 
 ```bash
+# Option 1: Install from PyPI (when available)
 sudo pip install git-sim[mcp]
-# or for development
+
+# Option 2: Install from source for development
 cd /path/to/git-sim
 sudo pip install -e ".[mcp]"
+
+# Option 3: Install to user directory (avoids system-wide installation)
+pip install --user git-sim[mcp]
+# Note: Ensure ~/.local/bin is in your PATH
 ```
+
+**Note**: Installing packages with `sudo pip` can conflict with system package managers. For production use, consider using a virtual environment or containerization. The systemd service can be configured to use a virtual environment by modifying the `ExecStart` path.
 
 2. Verify the installation:
 
@@ -251,9 +259,15 @@ sudo nano /etc/systemd/system/git-sim-mcp.service
 Key settings to configure:
 - `User` and `Group`: Change if using a different user
 - `WorkingDirectory`: Change if using a different location
-- `ExecStart`: Adjust path to git-sim-mcp if installed elsewhere
+- `ExecStart`: Adjust path to git-sim-mcp if installed elsewhere (see note below for virtual environments)
 - `--host` and `--port`: Configure network binding
 - Environment variables: Uncomment and set as needed
+
+**Using a virtual environment**: To use git-sim-mcp from a virtual environment, modify the `ExecStart` line:
+
+```ini
+ExecStart=/path/to/venv/bin/git-sim-mcp --transport sse --host 0.0.0.0 --port 8000 --log-level INFO
+```
 
 5. **Reload systemd and enable the service**:
 

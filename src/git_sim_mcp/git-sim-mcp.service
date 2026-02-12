@@ -19,8 +19,10 @@ RestartSec=10
 
 # Environment variables
 # Uncomment and configure as needed
+# MCP server-specific environment variables (uppercase with GIT_SIM_ prefix)
 #Environment="GIT_SIM_CORS_ACCEPT_ALL=true"
 #Environment="GIT_SIM_SSH_DISABLE_HOST_KEY_CHECKING=false"
+# Standard git-sim environment variables (lowercase with git_sim_ prefix)
 #Environment="git_sim_media_dir=/var/lib/git-sim/media"
 #Environment="git_sim_light_mode=false"
 
