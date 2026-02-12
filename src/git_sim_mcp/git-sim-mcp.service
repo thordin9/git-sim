@@ -10,7 +10,10 @@ Group=git-sim
 WorkingDirectory=/var/lib/git-sim
 
 # Command to run the MCP server
-# Adjust the python path and parameters as needed
+# Adjust the python path based on your installation:
+# - User install: /home/username/.local/bin/git-sim-mcp
+# - System install: /usr/local/bin/git-sim-mcp
+# - Virtual env: /path/to/venv/bin/git-sim-mcp
 ExecStart=/usr/local/bin/git-sim-mcp --transport sse --host 0.0.0.0 --port 8000 --log-level INFO
 
 # Restart policy

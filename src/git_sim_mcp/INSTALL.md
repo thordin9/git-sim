@@ -199,28 +199,37 @@ For production deployments on Linux systems, you can run the MCP server as a sys
 
 ### Prerequisites
 
-1. Install git-sim with MCP support system-wide:
+1. Install git-sim with MCP support:
+
+**Recommended approach** - Install to user directory (no sudo required):
 
 ```bash
-# Option 1: Install from PyPI (when available)
-sudo pip install git-sim[mcp]
-
-# Option 2: Install from source for development
-cd /path/to/git-sim
-sudo pip install -e ".[mcp]"
-
-# Option 3: Install to user directory (avoids system-wide installation)
 pip install --user git-sim[mcp]
-# Note: Ensure ~/.local/bin is in your PATH
+# Ensure ~/.local/bin is in your PATH
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
-**Note**: Installing packages with `sudo pip` can conflict with system package managers. For production use, consider using a virtual environment or containerization. The systemd service can be configured to use a virtual environment by modifying the `ExecStart` path.
+Alternative approaches:
+
+```bash
+# Option 2: System-wide installation (requires sudo, may conflict with system packages)
+sudo pip install git-sim[mcp]
+
+# Option 3: Install from source for development
+cd /path/to/git-sim
+pip install --user -e ".[mcp]"
+# or with sudo for system-wide
+sudo pip install -e ".[mcp]"
+```
+
+**Note**: Installing packages with `sudo pip` can conflict with system package managers. For production use, consider using a virtual environment (see instructions below) or containerization. The systemd service can be configured to use a virtual environment by modifying the `ExecStart` path.
 
 2. Verify the installation:
 
 ```bash
 which git-sim-mcp
-# Should output: /usr/local/bin/git-sim-mcp
+# Expected output for user installation: /home/username/.local/bin/git-sim-mcp
+# Expected output for system installation: /usr/local/bin/git-sim-mcp
 ```
 
 ### Setup Steps
