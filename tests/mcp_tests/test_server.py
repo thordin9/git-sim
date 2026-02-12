@@ -1,11 +1,6 @@
 """Tests for git-sim MCP server."""
 
 import pytest
-import asyncio
-import json
-import tempfile
-import os
-from pathlib import Path
 from unittest.mock import Mock, patch, AsyncMock
 
 # Import MCP server components

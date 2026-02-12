@@ -1,9 +1,7 @@
 """Integration tests for git-sim MCP server with actual git-sim commands."""
 
 import pytest
-import asyncio
 import tempfile
-import os
 import shutil
 from pathlib import Path
 import subprocess

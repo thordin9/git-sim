@@ -10,7 +10,7 @@ The git-sim MCP (Model Context Protocol) server enables AI agents and LLMs to ge
 
 Before installing the MCP server, ensure you have:
 
-1. **Python 3.7 or higher**
+1. **Python 3.9 or higher**
 2. **git-sim and its dependencies** (if you want full functionality)
    - See [git-sim installation guide](../../README.md#installation)
    - For MCP server testing without full git-sim, you can skip this

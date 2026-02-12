@@ -1,12 +1,8 @@
 """MCP Server implementation for git-sim with HTTP and SSE support."""
 
 import asyncio
-import json
+import base64
 import logging
-import os
-import subprocess
-import sys
-import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -225,7 +221,7 @@ async def execute_git_sim(
 
         logger.info(f"Executing command: {' '.join(cmd)}")
 
-        # Execute the command
+        # Execute the command with timeout
         result = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=asyncio.subprocess.PIPE,
@@ -233,7 +229,21 @@ async def execute_git_sim(
             cwd=repo_path,
         )
 
-        stdout, stderr = await result.communicate()
+        # Add timeout to prevent hanging (5 minutes for animations, could be long)
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                result.communicate(), timeout=300.0
+            )
+        except asyncio.TimeoutError:
+            result.kill()
+            await result.wait()
+            return {
+                "success": False,
+                "output": "",
+                "error": "Command execution timed out after 300 seconds",
+                "command": " ".join(cmd),
+                "return_code": -1,
+            }
 
         stdout_str = stdout.decode("utf-8", errors="ignore")
         stderr_str = stderr.decode("utf-8", errors="ignore")
@@ -349,7 +359,71 @@ async def handle_call_tool(
             ]
 
         args = arguments.get("args", [])
-        repo_path = arguments.get("repo_path", ".")
+        raw_repo_path = arguments.get("repo_path", ".")
+
+        # Validate and sanitize repo_path to prevent directory traversal
+        try:
+            repo_path_obj = Path(raw_repo_path).resolve()
+            # Basic validation - ensure it's a real path
+            repo_path = str(repo_path_obj)
+        except Exception as e:
+            logger.warning(f"Invalid repo_path provided: {raw_repo_path!r} ({e})")
+            return [
+                TextContent(
+                    type="text",
+                    text=f"Error: Invalid 'repo_path' value: {str(e)}",
+                )
+            ]
+
+        # Validate args to ensure they don't contain suspicious patterns
+        if args:
+            for arg in args:
+                if not isinstance(arg, str):
+                    return [
+                        TextContent(
+                            type="text",
+                            text="Error: All 'args' must be strings",
+                        )
+                    ]
+
+        # Extract and validate media_dir
+        raw_media_dir = arguments.get("media_dir")
+        validated_media_dir = None
+        if raw_media_dir:
+            try:
+                media_dir_obj = Path(raw_media_dir).resolve()
+                validated_media_dir = str(media_dir_obj)
+            except Exception as e:
+                logger.warning(f"Invalid media_dir provided: {raw_media_dir!r} ({e})")
+                return [
+                    TextContent(
+                        type="text",
+                        text=f"Error: Invalid 'media_dir' value: {str(e)}",
+                    )
+                ]
+
+        # Validate extra_flags - only allow whitelisted safe flags
+        extra_flags = arguments.get("extra_flags", [])
+        if extra_flags:
+            safe_flags = {
+                "--quiet",
+                "-q",
+                "--reverse",
+                "-r",
+                "--all",
+                "--invert-branches",
+                "--hide-merged-branches",
+                "--highlight-commit-messages",
+            }
+            for flag in extra_flags:
+                if flag not in safe_flags:
+                    logger.warning(f"Potentially unsafe extra_flag blocked: {flag}")
+                    return [
+                        TextContent(
+                            type="text",
+                            text=f"Error: Extra flag '{flag}' is not allowed. Only whitelisted flags are permitted.",
+                        )
+                    ]
 
         # Extract options
         options = {
@@ -361,11 +435,11 @@ async def handle_call_tool(
             "low_quality": arguments.get("low_quality", False),
             "reverse": arguments.get("reverse", False),
             "all_branches": arguments.get("all", False),
-            "media_dir": arguments.get("media_dir"),
+            "media_dir": validated_media_dir,
             "output_only_path": arguments.get(
                 "output_only_path", True
             ),  # Enable by default for easier parsing
-            "extra_flags": arguments.get("extra_flags", []),
+            "extra_flags": extra_flags,
         }
 
         # Execute git-sim
@@ -394,8 +468,6 @@ async def handle_call_tool(
                 file_ext = Path(media_path).suffix.lower()
                 if file_ext in [".jpg", ".jpeg", ".png"]:
                     try:
-                        import base64
-
                         with open(media_path, "rb") as f:
                             image_data = base64.b64encode(f.read()).decode("utf-8")
 

@@ -1,6 +1,5 @@
 """Pytest configuration for MCP tests."""
 
-import pytest
 import sys
 from pathlib import Path
 
