@@ -201,53 +201,77 @@ For production deployments on Linux systems, you can run the MCP server as a sys
 
 1. Install git-sim with MCP support:
 
-**Recommended approach** - Install to user directory (no sudo required):
+**Recommended: Using a virtual environment (best for production)**
+
+```bash
+# Create a virtual environment
+python3 -m venv /opt/git-sim-mcp-venv
+source /opt/git-sim-mcp-venv/bin/activate
+pip install git-sim[mcp]
+# The service file will need to use: /opt/git-sim-mcp-venv/bin/git-sim-mcp
+```
+
+**Alternative: User installation (no sudo required)**
 
 ```bash
 pip install --user git-sim[mcp]
 # Ensure ~/.local/bin is in your PATH
 export PATH="$HOME/.local/bin:$PATH"
+# The service file will need to use the full path and run as your user
 ```
 
-Alternative approaches:
+**Alternative: Development from source**
 
 ```bash
-# Option 2: System-wide installation (requires sudo, may conflict with system packages)
-sudo pip install git-sim[mcp]
-
-# Option 3: Install from source for development
 cd /path/to/git-sim
 pip install --user -e ".[mcp]"
-# or with sudo for system-wide
-sudo pip install -e ".[mcp]"
 ```
 
-**Note**: Installing packages with `sudo pip` can conflict with system package managers. For production use, consider using a virtual environment (see instructions below) or containerization. The systemd service can be configured to use a virtual environment by modifying the `ExecStart` path.
+**Not Recommended: System-wide installation with sudo**
+
+While functional, this approach can conflict with system package managers and create security issues:
+
+```bash
+# Not recommended - only use if you understand the risks
+sudo pip install git-sim[mcp]
+```
 
 2. Verify the installation:
 
 ```bash
 which git-sim-mcp
-# Expected output for user installation: /home/username/.local/bin/git-sim-mcp
-# Expected output for system installation: /usr/local/bin/git-sim-mcp
+# Expected output depends on installation method:
+# - Virtual env: /opt/git-sim-mcp-venv/bin/git-sim-mcp
+# - User install: /home/username/.local/bin/git-sim-mcp
+# - System install: /usr/local/bin/git-sim-mcp
 ```
 
 ### Setup Steps
 
-1. **Create a dedicated user for the service** (recommended for security):
+1. **Create a virtual environment** (if using the recommended virtual environment method):
+
+```bash
+sudo mkdir -p /opt/git-sim-mcp-venv
+sudo python3 -m venv /opt/git-sim-mcp-venv
+sudo /opt/git-sim-mcp-venv/bin/pip install git-sim[mcp]
+```
+
+2. **Create a dedicated user for the service** (recommended for security):
 
 ```bash
 sudo useradd --system --no-create-home --shell /bin/false git-sim
 ```
 
-2. **Create the working directory**:
+3. **Create the working directory**:
 
 ```bash
 sudo mkdir -p /var/lib/git-sim/media
 sudo chown -R git-sim:git-sim /var/lib/git-sim
+# If using virtual environment, grant access to it
+sudo chown -R git-sim:git-sim /opt/git-sim-mcp-venv
 ```
 
-3. **Copy the service file**:
+4. **Copy the service file**:
 
 ```bash
 sudo cp src/git_sim_mcp/git-sim-mcp.service /etc/systemd/system/
@@ -259,7 +283,7 @@ Or create it manually:
 sudo nano /etc/systemd/system/git-sim-mcp.service
 ```
 
-4. **Edit the service file** to match your setup:
+5. **Edit the service file** to match your setup:
 
 ```bash
 sudo nano /etc/systemd/system/git-sim-mcp.service
@@ -268,30 +292,42 @@ sudo nano /etc/systemd/system/git-sim-mcp.service
 Key settings to configure:
 - `User` and `Group`: Change if using a different user
 - `WorkingDirectory`: Change if using a different location
-- `ExecStart`: Adjust path to git-sim-mcp if installed elsewhere (see note below for virtual environments)
+- `ExecStart`: **Important** - Update the path based on your installation method (see examples below)
 - `--host` and `--port`: Configure network binding
 - Environment variables: Uncomment and set as needed
 
-**Using a virtual environment**: To use git-sim-mcp from a virtual environment, modify the `ExecStart` line:
+**Example ExecStart configurations:**
 
+For virtual environment (recommended):
 ```ini
-ExecStart=/path/to/venv/bin/git-sim-mcp --transport sse --host 0.0.0.0 --port 8000 --log-level INFO
+ExecStart=/opt/git-sim-mcp-venv/bin/git-sim-mcp --transport sse --host 0.0.0.0 --port 8000 --log-level INFO
 ```
 
-5. **Reload systemd and enable the service**:
+For user installation:
+```ini
+# Update User=git-sim to User=yourusername
+ExecStart=/home/yourusername/.local/bin/git-sim-mcp --transport sse --host 0.0.0.0 --port 8000 --log-level INFO
+```
+
+For system installation:
+```ini
+ExecStart=/usr/local/bin/git-sim-mcp --transport sse --host 0.0.0.0 --port 8000 --log-level INFO
+```
+
+6. **Reload systemd and enable the service**:
 
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable git-sim-mcp.service
 ```
 
-6. **Start the service**:
+7. **Start the service**:
 
 ```bash
 sudo systemctl start git-sim-mcp.service
 ```
 
-7. **Check the service status**:
+8. **Check the service status**:
 
 ```bash
 sudo systemctl status git-sim-mcp.service
