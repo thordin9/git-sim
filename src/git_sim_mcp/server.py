@@ -231,9 +231,7 @@ async def execute_git_sim(
 
         # Add timeout to prevent hanging (5 minutes for animations, could be long)
         try:
-            stdout, stderr = await asyncio.wait_for(
-                result.communicate(), timeout=300.0
-            )
+            stdout, stderr = await asyncio.wait_for(result.communicate(), timeout=300.0)
         except asyncio.TimeoutError:
             result.kill()
             await result.wait()
