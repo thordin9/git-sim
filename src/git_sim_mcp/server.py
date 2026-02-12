@@ -77,7 +77,10 @@ GIT_SIM_TOOL_SCHEMA = {
     "properties": {
         "command": {
             "type": "string",
-            "description": "The git-sim subcommand to execute (e.g., 'log', 'merge', 'rebase', 'commit', 'branch', etc.)",
+            "description": (
+                "The git-sim subcommand to execute "
+                "(e.g., 'log', 'merge', 'rebase', 'commit', 'branch', etc.)"
+            ),
             "enum": [
                 "add",
                 "branch",
@@ -340,11 +343,11 @@ async def execute_git_sim(
 async def clone_repo(repo_url: str, branch: Optional[str] = None) -> Dict[str, Any]:
     """
     Clone a repository to a temporary directory.
-    
+
     Args:
         repo_url: The Git repository URL to clone
         branch: Optional branch to checkout after cloning
-        
+
     Returns:
         Dictionary containing:
         - success: bool indicating if clone succeeded
@@ -364,30 +367,34 @@ async def clone_repo(repo_url: str, branch: Optional[str] = None) -> Dict[str, A
                     "repo_url": repo_url,
                     "message": "Repository already cloned",
                 }
-        
+
         # Create temporary directory for the clone
         temp_dir = tempfile.mkdtemp(prefix="git-sim-clone-")
         logger.info(f"Cloning {repo_url} to {temp_dir}")
-        
+
         # Build git clone command
         cmd = ["git", "clone"]
-        
+
         # Add branch if specified
         if branch:
             cmd.extend(["-b", branch])
-        
+
         # Add repo URL and target directory
         cmd.extend([repo_url, temp_dir])
-        
+
         # Get SSH configuration from environment
         env = os.environ.copy()
-        
+
         # Check if we should disable SSH host key checking
-        disable_host_key_checking = os.getenv("GIT_SIM_SSH_DISABLE_HOST_KEY_CHECKING", "false").lower()
+        disable_host_key_checking = os.getenv(
+            "GIT_SIM_SSH_DISABLE_HOST_KEY_CHECKING", "false"
+        ).lower()
         if disable_host_key_checking in ("true", "1", "yes"):
             logger.info("SSH host key checking disabled")
-            env["GIT_SSH_COMMAND"] = "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-        
+            env["GIT_SSH_COMMAND"] = (
+                "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+            )
+
         # Execute git clone
         result = await asyncio.create_subprocess_exec(
             *cmd,
@@ -395,7 +402,7 @@ async def clone_repo(repo_url: str, branch: Optional[str] = None) -> Dict[str, A
             stderr=asyncio.subprocess.PIPE,
             env=env,
         )
-        
+
         # Wait for clone to complete with timeout
         try:
             stdout, stderr = await asyncio.wait_for(
@@ -410,15 +417,15 @@ async def clone_repo(repo_url: str, branch: Optional[str] = None) -> Dict[str, A
                 "error": f"Clone operation timed out after {CLONE_TIMEOUT_SECONDS} seconds",
                 "repo_url": repo_url,
             }
-        
+
         stdout_str = stdout.decode("utf-8", errors="ignore")
         stderr_str = stderr.decode("utf-8", errors="ignore")
-        
+
         if result.returncode == 0:
             # Store the cloned repo path
             _cloned_repos[repo_url] = temp_dir
             logger.info(f"Successfully cloned {repo_url} to {temp_dir}")
-            
+
             return {
                 "success": True,
                 "local_path": temp_dir,
@@ -435,7 +442,7 @@ async def clone_repo(repo_url: str, branch: Optional[str] = None) -> Dict[str, A
                 "repo_url": repo_url,
                 "return_code": result.returncode,
             }
-            
+
     except Exception as e:
         logger.error(f"Error cloning repository: {e}", exc_info=True)
         if "temp_dir" in locals() and os.path.exists(locals()["temp_dir"]):
@@ -490,8 +497,8 @@ git-sim generates visual simulations of Git commands as images or videos. This i
 - Learning and teaching Git concepts
 - Debugging complex Git operations
 
-The tool supports all major Git commands including: log, branch, merge, rebase, commit, 
-cherry-pick, reset, revert, stash, and many more.
+The tool supports all major Git commands including: log, branch, merge,
+rebase, commit, cherry-pick, reset, revert, stash, and many more.
 
 USAGE INSTRUCTIONS FOR AGENTS:
 1. Specify the 'command' parameter with the git-sim subcommand (e.g., 'log', 'merge', 'branch')
@@ -522,7 +529,7 @@ EXAMPLES:
 
 The tool returns the path to generated visualization file and command output.""",
             inputSchema=GIT_SIM_TOOL_SCHEMA,
-        )
+        ),
     ]
 
 
@@ -539,51 +546,50 @@ async def handle_call_tool(
         raise ValueError(f"Unknown tool: {name}")
 
 
-async def handle_clone_repo_tool(
-    arguments: Dict[str, Any]
-) -> Sequence[TextContent]:
+async def handle_clone_repo_tool(arguments: Dict[str, Any]) -> Sequence[TextContent]:
     """Handle clone-repo tool execution."""
     try:
         repo_url = arguments.get("repo_url")
         if not repo_url:
             return [
-                TextContent(
-                    type="text", text="Error: 'repo_url' parameter is required"
-                )
+                TextContent(type="text", text="Error: 'repo_url' parameter is required")
             ]
-        
+
         branch = arguments.get("branch")
-        
+
         # Execute the clone
         result = await clone_repo(repo_url=repo_url, branch=branch)
-        
+
         # Build response
         if result["success"]:
-            response_text = f"✓ Repository cloned successfully\n\n"
+            response_text = "✓ Repository cloned successfully\n\n"
             response_text += f"Repository URL: {result['repo_url']}\n"
             response_text += f"Local path: {result['local_path']}\n"
             if result.get("message"):
                 response_text += f"\n{result['message']}\n"
             if result.get("output"):
                 response_text += f"\nGit output:\n{result['output']}\n"
-            response_text += f"\nYou can now use this path with the git-sim tool by setting 'repo_path': '{result['local_path']}'"
+            response_text += (
+                f"\nYou can now use this path with the git-sim tool "
+                f"by setting 'repo_path': '{result['local_path']}'"
+            )
         else:
-            response_text = f"✗ Repository clone failed\n\n"
+            response_text = "✗ Repository clone failed\n\n"
             response_text += f"Repository URL: {result['repo_url']}\n"
             if result.get("error"):
                 response_text += f"\nError:\n{result['error']}\n"
             if result.get("return_code"):
                 response_text += f"Return code: {result['return_code']}\n"
-        
+
         return [TextContent(type="text", text=response_text)]
-        
+
     except Exception as e:
         logger.error(f"Error in clone-repo tool execution: {e}", exc_info=True)
         return [TextContent(type="text", text=f"Error cloning repository: {str(e)}")]
 
 
 async def handle_git_sim_tool(
-    arguments: Dict[str, Any]
+    arguments: Dict[str, Any],
 ) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
     """Handle git-sim tool execution."""
     try:
