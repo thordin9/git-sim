@@ -1,0 +1,46 @@
+[Unit]
+Description=git-sim MCP Server
+Documentation=https://github.com/initialcommit-com/git-sim
+After=network.target
+
+[Service]
+Type=simple
+User=git-sim
+Group=git-sim
+WorkingDirectory=/var/lib/git-sim
+
+# Command to run the MCP server
+# Adjust the python path based on your installation:
+# - User install: /home/username/.local/bin/git-sim-mcp
+# - System install: /usr/local/bin/git-sim-mcp
+# - Virtual env: /path/to/venv/bin/git-sim-mcp
+ExecStart=/usr/local/bin/git-sim-mcp --transport sse --host 0.0.0.0 --port 8000 --log-level INFO
+
+# Restart policy
+Restart=on-failure
+RestartSec=10
+
+# Environment variables
+# Uncomment and configure as needed
+# MCP server-specific environment variables (uppercase with GIT_SIM_ prefix)
+#Environment="GIT_SIM_CORS_ACCEPT_ALL=true"
+#Environment="GIT_SIM_SSH_DISABLE_HOST_KEY_CHECKING=false"
+# Standard git-sim environment variables (lowercase with git_sim_ prefix)
+#Environment="git_sim_media_dir=/var/lib/git-sim/media"
+#Environment="git_sim_light_mode=false"
+
+# Security settings
+# These settings enhance security by restricting the service
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/git-sim
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=git-sim-mcp
+
+[Install]
+WantedBy=multi-user.target

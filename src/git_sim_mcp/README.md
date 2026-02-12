@@ -70,6 +70,9 @@ python -m git_sim_mcp --transport sse
 python -m git_sim_mcp --transport sse --host 0.0.0.0 --port 8080
 ```
 
+For production deployments on Linux, consider using systemd. See the [systemd setup instructions](INSTALL.md#systemd-setup-linux) and the included [sample service file](git-sim-mcp.service).
+
+
 ### Configuration for MCP Clients
 
 #### Claude Desktop Configuration

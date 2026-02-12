@@ -193,6 +193,249 @@ python -m git_sim_mcp --help
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md) for contribution guidelines.
 
+## Systemd Setup (Linux)
+
+For production deployments on Linux systems, you can run the MCP server as a systemd service. This allows automatic startup on boot, automatic restart on failure, and centralized logging.
+
+### Prerequisites
+
+1. Install git-sim with MCP support:
+
+**Recommended: Using a virtual environment (best for production)**
+
+```bash
+# Create a virtual environment
+python3 -m venv /opt/git-sim-mcp-venv
+source /opt/git-sim-mcp-venv/bin/activate
+pip install git-sim[mcp]
+# The service file will need to use: /opt/git-sim-mcp-venv/bin/git-sim-mcp
+```
+
+**Alternative: User installation (no sudo required)**
+
+```bash
+pip install --user git-sim[mcp]
+# Ensure ~/.local/bin is in your PATH
+export PATH="$HOME/.local/bin:$PATH"
+# The service file will need to use the full path and run as your user
+```
+
+**Alternative: Development from source**
+
+```bash
+cd /path/to/git-sim
+pip install --user -e ".[mcp]"
+```
+
+**Not Recommended: System-wide installation with sudo**
+
+While functional, this approach can conflict with system package managers and create security issues:
+
+```bash
+# Not recommended - only use if you understand the risks
+sudo pip install git-sim[mcp]
+```
+
+2. Verify the installation:
+
+```bash
+which git-sim-mcp
+# Expected output depends on installation method:
+# - Virtual env: /opt/git-sim-mcp-venv/bin/git-sim-mcp
+# - User install: /home/username/.local/bin/git-sim-mcp
+# - System install: /usr/local/bin/git-sim-mcp
+```
+
+### Setup Steps
+
+1. **Create a virtual environment** (if using the recommended virtual environment method):
+
+```bash
+sudo mkdir -p /opt/git-sim-mcp-venv
+sudo python3 -m venv /opt/git-sim-mcp-venv
+sudo /opt/git-sim-mcp-venv/bin/pip install git-sim[mcp]
+```
+
+2. **Create a dedicated user for the service** (recommended for security):
+
+```bash
+sudo useradd --system --no-create-home --shell /bin/false git-sim
+```
+
+3. **Create the working directory**:
+
+```bash
+sudo mkdir -p /var/lib/git-sim/media
+sudo chown -R git-sim:git-sim /var/lib/git-sim
+# If using virtual environment, grant access to it
+sudo chown -R git-sim:git-sim /opt/git-sim-mcp-venv
+```
+
+4. **Copy the service file**:
+
+```bash
+sudo cp src/git_sim_mcp/git-sim-mcp.service /etc/systemd/system/
+```
+
+Or create it manually:
+
+```bash
+sudo nano /etc/systemd/system/git-sim-mcp.service
+```
+
+5. **Edit the service file** to match your setup:
+
+```bash
+sudo nano /etc/systemd/system/git-sim-mcp.service
+```
+
+Key settings to configure:
+- `User` and `Group`: Change if using a different user
+- `WorkingDirectory`: Change if using a different location
+- `ExecStart`: **Important** - Update the path based on your installation method (see examples below)
+- `--host` and `--port`: Configure network binding
+- Environment variables: Uncomment and set as needed
+
+**Example ExecStart configurations:**
+
+For virtual environment (recommended):
+```ini
+ExecStart=/opt/git-sim-mcp-venv/bin/git-sim-mcp --transport sse --host 0.0.0.0 --port 8000 --log-level INFO
+```
+
+For user installation:
+```ini
+# Update User=git-sim to User=yourusername
+ExecStart=/home/yourusername/.local/bin/git-sim-mcp --transport sse --host 0.0.0.0 --port 8000 --log-level INFO
+```
+
+For system installation:
+```ini
+ExecStart=/usr/local/bin/git-sim-mcp --transport sse --host 0.0.0.0 --port 8000 --log-level INFO
+```
+
+6. **Reload systemd and enable the service**:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable git-sim-mcp.service
+```
+
+7. **Start the service**:
+
+```bash
+sudo systemctl start git-sim-mcp.service
+```
+
+8. **Check the service status**:
+
+```bash
+sudo systemctl status git-sim-mcp.service
+```
+
+### Managing the Service
+
+#### View logs:
+
+```bash
+# Follow logs in real-time
+sudo journalctl -u git-sim-mcp.service -f
+
+# View recent logs
+sudo journalctl -u git-sim-mcp.service -n 100
+
+# View logs since boot
+sudo journalctl -u git-sim-mcp.service -b
+```
+
+#### Stop the service:
+
+```bash
+sudo systemctl stop git-sim-mcp.service
+```
+
+#### Restart the service:
+
+```bash
+sudo systemctl restart git-sim-mcp.service
+```
+
+#### Disable auto-start on boot:
+
+```bash
+sudo systemctl disable git-sim-mcp.service
+```
+
+### Configuration
+
+The service file includes several environment variables that can be configured:
+
+```ini
+# Enable CORS for all origins (useful for web clients)
+Environment="GIT_SIM_CORS_ACCEPT_ALL=true"
+
+# Disable SSH host key checking (use with caution)
+Environment="GIT_SIM_SSH_DISABLE_HOST_KEY_CHECKING=false"
+
+# Set custom media output directory
+Environment="git_sim_media_dir=/var/lib/git-sim/media"
+
+# Enable light mode
+Environment="git_sim_light_mode=false"
+```
+
+Uncomment and modify these in `/etc/systemd/system/git-sim-mcp.service`, then reload:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart git-sim-mcp.service
+```
+
+### Security Considerations
+
+The provided service file includes security hardening options:
+
+- `NoNewPrivileges=true`: Prevents privilege escalation
+- `PrivateTmp=true`: Uses private /tmp directory
+- `ProtectSystem=strict`: Makes most of the filesystem read-only
+- `ProtectHome=true`: Makes /home inaccessible
+- `ReadWritePaths=/var/lib/git-sim`: Allows writes only to working directory
+
+For additional security, consider:
+
+1. **Using a firewall** to restrict access to the service port:
+
+```bash
+sudo ufw allow from 192.168.1.0/24 to any port 8000
+```
+
+2. **Using a reverse proxy** (nginx, Apache) with SSL/TLS for HTTPS
+
+3. **Configuring specific CORS origins** instead of accepting all
+
+### Troubleshooting
+
+#### Service fails to start
+
+Check the logs:
+
+```bash
+sudo journalctl -u git-sim-mcp.service -n 50
+```
+
+Common issues:
+- **Permission denied**: Ensure the user has access to `/var/lib/git-sim`
+- **Command not found**: Verify `git-sim-mcp` is installed and path is correct
+- **Port already in use**: Change the port in the service file
+
+#### Service crashes
+
+The service is configured to automatically restart on failure. Check logs to identify the issue:
+
+```bash
+sudo journalctl -u git-sim-mcp.service --since "1 hour ago"
+```
+
 ## License
 
 GPL-2.0 - Same as git-sim
