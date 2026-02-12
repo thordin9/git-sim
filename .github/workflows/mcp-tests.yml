@@ -1,0 +1,183 @@
+name: MCP Server Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'src/git_sim_mcp/**'
+      - 'tests/mcp_tests/**'
+      - '.github/workflows/mcp-tests.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'src/git_sim_mcp/**'
+      - 'tests/mcp_tests/**'
+      - '.github/workflows/mcp-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Cache pip packages and venv
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/pip
+          .venv
+        key: ubuntu-venv-3.11-${{ hashFiles('**/pyproject.toml') }}
+        restore-keys: |
+          ubuntu-venv-3.11-
+          ubuntu-venv-
+    
+    - name: Create virtual environment
+      run: |
+        python -m venv .venv
+        source .venv/bin/activate
+        python -m pip install --upgrade pip
+    
+    - name: Install Python dependencies
+      run: |
+        source .venv/bin/activate
+        pip install mcp starlette uvicorn httpx
+        pip install pytest-asyncio pytest-cov
+    
+    - name: Run MCP server unit tests
+      run: |
+        source .venv/bin/activate
+        export PYTHONPATH="${GITHUB_WORKSPACE}/src:${PYTHONPATH}"
+        pytest tests/mcp_tests/test_server.py -v --cov=git_sim_mcp --cov-report=xml --cov-report=term
+    
+    - name: Run MCP server smoke tests
+      run: |
+        source .venv/bin/activate
+        export PYTHONPATH="${GITHUB_WORKSPACE}/src:${PYTHONPATH}"
+        pytest tests/mcp_tests/test_smoke.py -v
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./coverage.xml
+        flags: mcp-tests
+        name: mcp-coverage
+        fail_ci_if_error: false
+
+  lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Cache pip packages and venv
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/pip
+          .venv-lint
+        key: ubuntu-venv-lint-3.11-${{ hashFiles('**/pyproject.toml') }}
+        restore-keys: |
+          ubuntu-venv-lint-3.11-
+          ubuntu-venv-lint-
+    
+    - name: Create virtual environment
+      run: |
+        python -m venv .venv-lint
+        source .venv-lint/bin/activate
+        python -m pip install --upgrade pip
+    
+    - name: Install dependencies
+      run: |
+        source .venv-lint/bin/activate
+        pip install black flake8 mypy
+        pip install mcp starlette uvicorn httpx
+    
+    - name: Run black
+      run: |
+        source .venv-lint/bin/activate
+        export PYTHONPATH="${GITHUB_WORKSPACE}/src:${PYTHONPATH}"
+        black --check src/git_sim_mcp/
+    
+    - name: Run flake8
+      run: |
+        source .venv-lint/bin/activate
+        flake8 src/git_sim_mcp/ --max-line-length=120 --ignore=E203,W503
+      continue-on-error: true
+    
+    - name: Run mypy
+      run: |
+        source .venv-lint/bin/activate
+        export PYTHONPATH="${GITHUB_WORKSPACE}/src:${PYTHONPATH}"
+        mypy src/git_sim_mcp/ --ignore-missing-imports
+      continue-on-error: true
+
+  test-server-startup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Cache pip packages and venv
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/pip
+          .venv-startup
+        key: ubuntu-venv-startup-3.11-${{ hashFiles('**/pyproject.toml') }}
+        restore-keys: |
+          ubuntu-venv-startup-3.11-
+          ubuntu-venv-startup-
+    
+    - name: Create virtual environment
+      run: |
+        python -m venv .venv-startup
+        source .venv-startup/bin/activate
+        python -m pip install --upgrade pip
+    
+    - name: Install dependencies
+      run: |
+        source .venv-startup/bin/activate
+        pip install mcp starlette uvicorn httpx
+    
+    - name: Test server help output
+      run: |
+        source .venv-startup/bin/activate
+        export PYTHONPATH="${GITHUB_WORKSPACE}/src:${PYTHONPATH}"
+        python -m git_sim_mcp --help
+    
+    - name: Test server version
+      run: |
+        source .venv-startup/bin/activate
+        export PYTHONPATH="${GITHUB_WORKSPACE}/src:${PYTHONPATH}"
+        python -m git_sim_mcp --version
+    
+    - name: Test SSE server startup (short-lived)
+      run: |
+        source .venv-startup/bin/activate
+        export PYTHONPATH="${GITHUB_WORKSPACE}/src:${PYTHONPATH}"
+        timeout 5s python -m git_sim_mcp --transport sse --port 8888 || true
+      continue-on-error: true

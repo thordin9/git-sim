@@ -8,3 +8,5 @@ dist/
 git_sim.egg-info/
 
 .venv/
+test_venv/
+*venv*/
