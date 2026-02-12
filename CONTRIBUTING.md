@@ -54,6 +54,22 @@ $ cd path/to/git-sim
 $ python -m pip install -e .[dev]
 ```
 
+Alternatively, you can use the requirements files:
+
+```console
+$ cd path/to/git-sim
+$ python -m pip install -r requirements-dev.txt
+$ python -m pip install -e .
+```
+
+Or with `uv` for faster installation (see [SETUP.md](SETUP.md) for uv installation):
+
+```console
+$ cd path/to/git-sim
+$ uv pip install -r requirements-dev.txt
+$ uv pip install -e .
+```
+
 > Explanation: `python -m pip` uses the `pip` module of the currently active python interpreter.
 >
 > `install -e .[dev]` is the command that `pip` executes, where
